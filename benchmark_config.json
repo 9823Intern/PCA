@@ -1,36 +1,167 @@
 {
-    "benchmarks":{
-        "Fabrication":{
-            "Tickers": ["ASML", "LRCX", "KLAC", "AMAT", "8035", "7751", "042380", "6501", "6525", "7731"]
+    "benchmarks": {
+        "Fabrication": {
+            "Tickers": [
+                "BBG000BLGLW1",
+                "BBG01FND0CC1",
+                "BBG000BF3WW4",
+                "BBG000BG42K0",
+                "BBG000BVMG26",
+                "BBG000HSLV70",
+                "BBG00F9VSCH3",
+                "BBG000BJNGN9",
+                "BBG000BPS2C3"
+            ]
         },
-        "Specialized_Materials":{
-            "Tickers": []
+        "Specialized_Materials": {
+            "Tickers": [
+                "BBG000BG2589",
+                "BBG000JSLQ97",
+                "BBG008P7H2X0",
+                "BBG000KP2222"
+            ]
         },
-        "Wafer_Fab_Equipemnt":{
-            "Tickers": ["ASML", "LRCX", "KLAC", "AMAT", "8035", "7751", "04380", "7735", "6501", "6525", "7731"]
+        "Wafer_Fab_Equipemnt": {
+            "Tickers": [
+                "BBG000K6MRN4",
+                "BBG000BNFLM9",
+                "BBG000BMTFR4",
+                "BBG000BBPFB9",
+                "BBG000BB5BS2",
+                "BBG000BBZMH7",
+                "BBG0071BY359",
+                "BBG000BMGLJ4",
+                "BBG000C2QRY6",
+                "BBG01JG8R1V6",
+                "BBG000BGS2S6"
+            ]
         },
-        "Fabless":{
-            "Tickers": ["NVDA", "AVGO", "QCOM", "AMD", "GCTS", "ALGM", "AMBA", "ALAB", "CDNS", "CRUS", "PI", "LSCC", "MRVL", "MPWR", "POWI", "RMBS", "SMTC", "SLAB", "SIMO", "SITM", "SYNA", "SNPS"]
+        "Fabless": {
+            "Tickers": [
+                "BBG000BBJQV0",
+                "BBG00KHY5S69",
+                "BBG000CGC1X8",
+                "BBG000BBQCY0",
+                "BBG00ZVLG9K2",
+                "BBG001BHGNB7",
+                "BBG00H5S8391",
+                "BBG001QZCPJ2",
+                "BBG00TDKHW99",
+                "BBG000C13CD9",
+                "BBG000C1DHF5",
+                "BBG000GRK2Z7",
+                "BBG000C2D1C1",
+                "BBG00ZXBJ153",
+                "BBG000C30L48",
+                "BBG000BTT3D1",
+                "BBG000BR32C6",
+                "BBG000DBKR53",
+                "BBG000BB99S3",
+                "BBG000GT7XY1",
+                "BBG00QNSY1H7",
+                "BBG000BQV1S2",
+                "BBG000BSFRF3"
+            ]
         },
-        "Fabless_Non_Chip":{
-            "Tickers": ["AAPL", "META", "IBM", "GOOGL", "AMZN", "TSLA", "MSFT", "QCOM", "AMD"]
+        "Fabless_Non_Chip": {
+            "Tickers": [
+                "BBG000B9XRY4",
+                "BBG000MM2P62",
+                "BBG000BLNNH6",
+                "BBG009S39JX6",
+                "BBG000BVPV84",
+                "BBG000N9MNX3",
+                "BBG000BPH459",
+                "BBG000CGC1X8",
+                "BBG000C0F570"
+            ]
         },
-        "Foundry":{
-            "Tickers": ["GFS", "UMC", "TSM", "SMCI", "SSNHZ", "5347", "TSEM", "6770", "1347", "688249", "XFABF", "00099"]
+        "Foundry": {
+            "Tickers": [
+                "BBG000C2L5G9",
+                "BBG000BR4TH1",
+                "BBG000BD8ZK0",
+                "BBG000MYZDJ3",
+                "BBG000BQ8RF5",
+                "BBG000BJ08K5",
+                "BBG000BH91G0",
+                "BBG00YCX21R5",
+                "BBG0078Q6BC4",
+                "BBG0110DB0X8",
+                "BBG012NWX9G5",
+                "BBG000BCV8Q0"
+            ]
         },
-        "IDM":{
-            "Tickers": ["TXN", "000660", "ADI", "INTC", "SSNHZ", "MU", "IFX", "STMPA", "NXPI", "SONY", "6963", "6981", "600460", "1347", "1726722d", "6941", "ON"]
+        "IDM": {
+            "Tickers": [
+                "BBG000BVV7G1",
+                "BBG000GQVT51",
+                "BBG000BB6G37",
+                "BBG000C0G1D1",
+                "BBG000BQ8RF5",
+                "BBG000C5Z1S3",
+                "BBG000C8L273",
+                "BBG000BHHK06",
+                "BBG000BND699",
+                "BBG000BT7ZK6",
+                "BBG000BGP129",
+                "BBG000BM4LB5",
+                "BBG000CJ0QG9",
+                "BBG0078Q6BC4",
+                "BBG00PGWMJ00",
+                "BBG000BKM999",
+                "BBG000DV7MX4"
+            ]
         },
-        "EDA_Tools":{
-            "Tickers": ["CDNS", "KEYS", "6947", "SNPS", "ANSS", "XLNX", "SIE", "SVCO", "AIP", "ADSK", "DSY", "DLG", "LSCC"]
+        "EDA_Tools": {
+            "Tickers": [
+                "BBG000C13CD9",
+                "BBG0059FN811",
+                "BBG000BDZ8D8",
+                "BBG000BSFRF3",
+                "BBG000GXZ4W7",
+                "BBG000C0F570",
+                "BBG000BCCT76",
+                "BBG01MF5HF91",
+                "BBG000QMLTK3",
+                "BBG000BM7HL0",
+                "BBG000GVXC37",
+                "BBG000BKTKV2",
+                "BBG000C2D1C1"
+            ]
         },
-        "IP_Design_Software":{
-            "Tickers": ["SNPS", "SIE", "ANSS", "ARM", "CDNS", "LSCC", "MIPS", "3529", "6643", "688521", "3035", "CEVA", "RMBS", "AWE", "AIP", "6533", "SVCO", "SSNC"]
+        "IP_Design_Software": {
+            "Tickers": [
+                "BBG000BSFRF3",
+                "BBG000BCCT76",
+                "BBG000GXZ4W7",
+                "BBG01J1GXZF0",
+                "BBG000C13CD9",
+                "BBG000C2D1C1",
+                "BBG000BD1ZD5",
+                "BBG000CFGTZ3",
+                "BBG00HPPCTD8",
+                "BBG00FS6LPP6",
+                "BBG000DFTFQ8",
+                "BBG000BN3P07",
+                "BBG000BR32C6",
+                "BBG010K53NF4",
+                "BBG000QMLTK3",
+                "BBG009PZ50W4",
+                "BBG01MF5HF91",
+                "BBG00V76KZV6"
+            ]
         },
-        "Testing_Packaging_Assembly":{
-            "Tickers": ["TER", "AMKR", "ASML", "LSCC", "2354"]
+        "Testing_Packaging_Assembly": {
+            "Tickers": [
+                "BBG000BV4DR6",
+                "BBG000BCKGW7",
+                "BBG000C2V3D6",
+                "BBG000C2D1C1",
+                "BBG000HH6CH2"
+            ]
         },
-        "Ecosystem_Supply_Chain":{
+        "Ecosystem_Supply_Chain": {
             "Tickers": []
         }
     }
