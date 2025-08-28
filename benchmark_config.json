@@ -1,0 +1,37 @@
+{
+    "benchmarks":{
+        "Fabrication":{
+            "Tickers": ["ASML", "LRCX", "KLAC", "AMAT", "8035", "7751", "042380", "6501", "6525", "7731"]
+        },
+        "Specialized_Materials":{
+            "Tickers": []
+        },
+        "Wafer_Fab_Equipemnt":{
+            "Tickers": ["ASML", "LRCX", "KLAC", "AMAT", "8035", "7751", "04380", "7735", "6501", "6525", "7731"]
+        },
+        "Fabless":{
+            "Tickers": ["NVDA", "AVGO", "QCOM", "AMD", "GCTS", "ALGM", "AMBA", "ALAB", "CDNS", "CRUS", "PI", "LSCC", "MRVL", "MPWR", "POWI", "RMBS", "SMTC", "SLAB", "SIMO", "SITM", "SYNA", "SNPS"]
+        },
+        "Fabless_Non_Chip":{
+            "Tickers": ["AAPL", "META", "IBM", "GOOGL", "AMZN", "TSLA", "MSFT", "QCOM", "AMD"]
+        },
+        "Foundry":{
+            "Tickers": ["GFS", "UMC", "TSM", "SMCI", "SSNHZ", "5347", "TSEM", "6770", "1347", "688249", "XFABF", "00099"]
+        },
+        "IDM":{
+            "Tickers": ["TXN", "000660", "ADI", "INTC", "SSNHZ", "MU", "IFX", "STMPA", "NXPI", "SONY", "6963", "6981", "600460", "1347", "1726722d", "6941", "ON"]
+        },
+        "EDA_Tools":{
+            "Tickers": ["CDNS", "KEYS", "6947", "SNPS", "ANSS", "XLNX", "SIE", "SVCO", "AIP", "ADSK", "DSY", "DLG", "LSCC"]
+        },
+        "IP_Design_Software":{
+            "Tickers": ["SNPS", "SIE", "ANSS", "ARM", "CDNS", "LSCC", "MIPS", "3529", "6643", "688521", "3035", "CEVA", "RMBS", "AWE", "AIP", "6533", "SVCO", "SSNC"]
+        },
+        "Testing_Packaging_Assembly":{
+            "Tickers": ["TER", "AMKR", "ASML", "LSCC", "2354"]
+        },
+        "Ecosystem_Supply_Chain":{
+            "Tickers": []
+        }
+    }
+}
