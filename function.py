@@ -2,10 +2,10 @@ from sklearn.decomposition import PCA
 import json
 import pandas as pd
 
-adj_close_path = ''
+adj_close_path = "C:/Users/EnnTurn/Precept Dropbox/Enn Turn/Georges_DataBase/Securities_Adj_Close_MASTER.csv"
 adj_close_df = pd.read_csv(adj_close_path, index_col=0, parse_dates=True)
 
-returns_path = ''
+returns_path = "C:/Users/EnnTurn/Precept Dropbox/Enn Turn/Georges_DataBase/Securities_Daily_Pct_Change_MASTER.csv"
 returns = pd.read_csv(returns_path, index_col=0, parse_dates=True)
 
 
