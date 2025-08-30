@@ -20,10 +20,49 @@ def ensure_datetime_columns(returns_df: pd.DataFrame) -> pd.DataFrame:
 
 
 def align_subset(returns_df: pd.DataFrame, tickers: List[str]) -> pd.DataFrame:
-    """Return a subset of returns_df for the given tickers, dropping all-NaN columns/rows."""
-    sub = returns_df.loc[[t for t in tickers if t in returns_df.index]].copy()
-    # Drop columns (dates) with all NaNs and rows with all NaNs
-    sub = sub.dropna(axis=1, how="all").dropna(axis=0, how="all")
+    """Return a subset suitable for PCA despite IPO gaps.
+
+    Steps:
+    - Keep tickers present in index (normalized to upper/strip)
+    - Trim to common start (max first non-NaN date across present tickers)
+    - Require each ticker to have at least MIN_DAYS of data
+    - Drop dates with any NaNs across the remaining tickers
+    - Return empty if fewer than MIN_TICKERS or MIN_DAYS are available
+    """
+    MIN_DAYS = 30
+    MIN_TICKERS = 2
+
+    present = [str(t).strip().upper() for t in tickers if str(t).strip().upper() in returns_df.index]
+    if len(present) < MIN_TICKERS:
+        return pd.DataFrame()
+
+    sub = returns_df.loc[present].copy()
+
+    # Determine common start as the latest first-valid date among present tickers
+    first_valid = sub.apply(lambda s: s.first_valid_index(), axis=1)
+    valid_starts = [d for d in first_valid.tolist() if d is not None]
+    if not valid_starts:
+        return pd.DataFrame()
+    common_start = max(valid_starts)
+
+    # Trim to dates >= common_start
+    sub = sub.loc[:, sub.columns >= common_start]
+
+    # Filter tickers with at least MIN_DAYS available
+    has_days = sub.notna().sum(axis=1)
+    keep = has_days[has_days >= MIN_DAYS].index.tolist()
+    if len(keep) < MIN_TICKERS:
+        return pd.DataFrame()
+
+    sub = sub.loc[keep]
+
+    # Drop any dates with remaining NaNs across the kept tickers
+    sub = sub.dropna(axis=1, how="any")
+
+    # Final checks
+    if sub.shape[0] < MIN_TICKERS or sub.shape[1] < MIN_DAYS:
+        return pd.DataFrame()
+
     return sub
 
 @dataclass
@@ -57,9 +96,16 @@ def run_benchmark_pca(
     BenchmarkPCA
     """
 
-    subset = align_subset(ensure_datetime_columns(returns_df, benchmark_tickers))
+    returns_prepped = ensure_datetime_columns(returns)
+    subset = align_subset(returns_prepped, benchmark_tickers)
+    if subset.shape[1] > 0:
+        print(f"[pca] {benchmark_name}: tickers={subset.shape[0]} days={subset.shape[1]} span={subset.columns.min()}→{subset.columns.max()}")
     if subset.shape[0] < 2:
+        print(f"[pca] {benchmark_name}: not enough tickers after alignment ({subset.shape[0]} < 2)")
         raise ValueError(f"Benchmark {benchmark_name} has less than 2 valid tickers")
+    if subset.shape[1] < 2:
+        print(f"[pca] {benchmark_name}: not enough days after alignment ({subset.shape[1]} < 2)")
+        raise ValueError(f"Benchmark {benchmark_name} has less than 2 valid days")
 
     # sklearn expects shape (n_samples, n_features) -> (n_days,  n_tickers)
     X = subset.T
@@ -137,21 +183,22 @@ def rolling_zscore(
 def stat_arb_signals(
     z: pd.Series,
     entry: float = 2.0,
-    exit_: float = -2.0,
+    exit_: float = 0.5,
 ) -> pd.Series:
     signal = pd.Series(0, index=z.index, dtype=int)
     pos = 0
     for t, val in z.items():
-        if pos ==0:
+        # Exit if within band
+        if abs(val) <= exit_:
+            pos = 0
+        else:
+            # Enter positions when outside entry thresholds
             if val >= entry:
                 pos = -1
             elif val <= -entry:
                 pos = 1
-            else:
-                if abs(val) <= exit_:
-                    pos = 0
-            signal.loc[t] = pos
-        return signal
+        signal.loc[t] = pos
+    return signal
 
 def pc_correlation(
     subset_returns: pd.DataFrame,
@@ -185,6 +232,9 @@ def process_benchmark(
     exit_: float = 0.5,
     ) -> BenchmarkResult:
 
+    normalized_present = [str(t).strip().upper() for t in tickers if str(t).strip().upper() in returns_df.index]
+    print(f"[process] {benchmark_name}: cfg={len(tickers)} present={len(normalized_present)}")
+
     pca_res = run_benchmark_pca(returns_df, benchmark_name, tickers, n_components=2, standardize=True)
 
     subset = align_subset(ensure_datetime_columns(returns_df), tickers)
@@ -196,7 +246,6 @@ def process_benchmark(
         z = rolling_zscore(reg.residuals, window=z_window, min_periods=z_min_periods)
         sig = stat_arb_signals(z, entry=entry, exit_=exit_)
         rows.append({
-            "benchmark": benchmark_name,
             "stock": tkr,
             "r2": reg.r2,
             "alpha": reg.alpha,
@@ -249,8 +298,10 @@ def pca_stat_arb_pipeline(
                 exit_=exit_,
             )
         except Exception as e:
-            # Skip problematic benchmarks but log an empty row for visibility
-            empty = pd.DataFrame(columns=["benchmark", "r2", "alpha", "beta", "z", "signal", "pc1_corr", "pc2_corr"])
+            # Skip problematic benchmarks; append an empty per-stock frame with MultiIndex ['benchmark','stock']
+            print(f"[pipeline] skipped {name}: {e}")
+            empty = pd.DataFrame(columns=["r2", "alpha", "beta", "z", "signal", "pc1_corr", "pc2_corr"])
+            empty.index = pd.MultiIndex.from_arrays([[], []], names=["benchmark", "stock"])
             per_stock_frames.append(empty)
             continue
 
@@ -277,16 +328,24 @@ def pca_stat_arb_pipeline(
 # ----------------------
 
 def best_benchmark_by_pc1_corr(per_stock_table: pd.DataFrame) -> pd.Series:
-    """Return the best benchmark for each stock based on PC1 correlation."""
-    df = per_stock_table.copy()
-    df = df.reset_index()
-    best = df.loc[df.groupby("stock")["pc1_corr"].idxmax()][["stock","benchmark","pc1_corr"]]
+    """Return the best benchmark for each stock based on PC1 correlation (NaN-safe)."""
+    df = per_stock_table.reset_index()
+    if df.empty or "pc1_corr" not in df.columns:
+        return pd.Series(dtype=object)
+    dfn = df.dropna(subset=["pc1_corr"]).copy()
+    if dfn.empty:
+        return pd.Series(dtype=object)
+    idx = dfn.groupby("stock")["pc1_corr"].idxmax()
+    best = dfn.loc[idx, ["stock","benchmark","pc1_corr"]]
     return best.set_index("stock")["benchmark"]
 
 def extract_signals(per_stock_table: pd.DataFrame, signal_only: bool = True):
+    if per_stock_table.empty:
+        cols = ["benchmark","stock","z","signal","r2","pc1_corr","pc2_corr"]
+        return pd.DataFrame(columns=cols)
     cols = [c for c in ["z","signal","r2","pc1_corr","pc2_corr"] if c in per_stock_table.columns]
     out = per_stock_table.reset_index()[["benchmark","stock"] + cols]
-    if signal_only:
+    if signal_only and "signal" in out.columns:
         out = out[out["signal"].abs() > 0]
     return out.sort_values(["benchmark","stock"]).reset_index(drop=True)
 

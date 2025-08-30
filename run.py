@@ -24,15 +24,39 @@ from pca_stat_arb_module import pca_stat_arb_pipeline, extract_signals, best_ben
 # Replace this section with your real returns data
 # -------------------------------
 # Example:
-# returns_df = pd.read_csv("my_returns.csv", index_col=0, parse_dates=True)
-# returns_df.index.name = "ticker"
-# returns_df.columns = pd.to_datetime(returns_df.columns)
+returns_df = pd.read_csv("C:/Users/EnnTurn/Precept Dropbox/Enn Turn/Georges_DataBase/figionly.csv", index_col=0, parse_dates=True)
+returns_df.index.name = "FIGI"
+col_labels = returns_df.columns.map(str).str.strip()
+parsed_cols = pd.to_datetime(col_labels, errors="coerce", format="mixed")
+returns_df = returns_df.loc[:, ~parsed_cols.isna()]
+returns_df.columns = parsed_cols[~parsed_cols.isna()]
 
 # Load benchmarks from config file
 with open("benchmark_config.json", "r") as f:
     config = json.load(f)
 
 benchmarks = {name: data["Tickers"] for name, data in config["benchmarks"].items() if data["Tickers"]}
+
+# Normalize index to uppercase/stripped strings
+returns_df.index = returns_df.index.map(str).str.strip().str.upper()
+
+# Pre-filter benchmarks to tickers present in returns; require at least 2
+present = set(returns_df.index)
+filtered_benchmarks = {}
+for name, tks in benchmarks.items():
+    cleaned = []
+    for t in tks:
+        tt = str(t).strip().upper()
+        if tt in present:
+            cleaned.append(tt)
+    if len(cleaned) >= 2:
+        filtered_benchmarks[name] = cleaned
+
+# Debug summary
+print("\n[run] filtered benchmarks:")
+for n, ts in filtered_benchmarks.items():
+    print(f"  {n}: {len(ts)} tickers")
+print(f"[run] total benchmarks usable: {len(filtered_benchmarks)}\n")
 
 # -------------------------------
 # Runner
@@ -47,7 +71,7 @@ if __name__ == "__main__":
     # Run pipeline
     results = pca_stat_arb_pipeline(
         returns_df,
-        benchmarks,
+        filtered_benchmarks,
         z_window=60,
         z_min_periods=30,
         entry=2.0,
@@ -64,12 +88,16 @@ if __name__ == "__main__":
     print(best_benchmark_by_pc1_corr(results.per_stock_table))
 
     # Access PC1/PC2 series for a benchmark (using first available benchmark)
-    first_benchmark = list(benchmarks.keys())[0]
-    pc1_series = results.benchmark_pcs[first_benchmark]["PC1"]
-    print(f"\n{first_benchmark} PC1 head:")
-    print(pc1_series.head())
+    available = list(results.benchmark_pcs.keys())
+    if not available:
+        print("\nNo benchmark PCs were produced. Ensure your returns_df has data for benchmark tickers.")
+    else:
+        first_benchmark = available[0]
+        pc1_series = results.benchmark_pcs[first_benchmark]["PC1"]
+        print(f"\n{first_benchmark} PC1 head:")
+        print(pc1_series.head())
 
-    # Access stock loadings on PCs
-    loadings = results.loadings[first_benchmark]
-    print(f"\n{first_benchmark} Loadings:")
-    print(loadings)
+        # Access stock loadings on PCs
+        loadings = results.loadings[first_benchmark]
+        print(f"\n{first_benchmark} Loadings:")
+        print(loadings)
