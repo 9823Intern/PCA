@@ -220,6 +220,8 @@ def pc_correlation(
 class BenchmarkResult:
     pca: BenchmarkPCA
     per_stock: pd.DataFrame # Multi-index (benchmark, stock) rows or index = stock
+    historical_signals: Optional[pd.DataFrame] = None  # dates x stocks
+    historical_z_scores: Optional[pd.DataFrame] = None  # dates x stocks
 
 
 def process_benchmark(
@@ -348,4 +350,177 @@ def extract_signals(per_stock_table: pd.DataFrame, signal_only: bool = True):
     if signal_only and "signal" in out.columns:
         out = out[out["signal"].abs() > 0]
     return out.sort_values(["benchmark","stock"]).reset_index(drop=True)
+
+
+def get_historical_signals(
+    returns_df: pd.DataFrame,
+    benchmarks: Dict[str, List[str]],
+    z_window: int = 60,
+    z_min_periods: int = 30,
+    entry: float = 2.0,
+    exit_: float = 0.5,
+) -> Dict[str, Dict[str, pd.DataFrame]]:
+    """
+    Returns full historical signals and z-scores for backtesting.
+    
+    Parameters
+    ----------
+    returns_df : DataFrame (index=tickers, columns=dates)
+    benchmarks : Dict[str, List[str]]
+        Mapping of benchmark name to list of tickers
+    z_window : int, default=60
+        Rolling window for z-score calculation
+    z_min_periods : int, default=30
+        Minimum periods for rolling calculations
+    entry : float, default=2.0
+        Z-score threshold for signal entry
+    exit_ : float, default=0.5
+        Z-score threshold for signal exit
+    
+    Returns
+    -------
+    Dict with structure:
+    {
+        'benchmark_name': {
+            'signals': DataFrame(dates x stocks),
+            'z_scores': DataFrame(dates x stocks),
+            'pc1': Series(dates),
+            'pc2': Series(dates),
+            'loadings': DataFrame(stocks x PCs),
+            'explained_variance': array
+        }
+    }
+    """
+    returns_df = ensure_datetime_columns(returns_df)
+    results = {}
+    
+    for benchmark_name, tickers in benchmarks.items():
+        try:
+            print(f"[historical] Processing {benchmark_name}...")
+            
+            # Run PCA for this benchmark
+            pca_res = run_benchmark_pca(returns_df, benchmark_name, tickers, n_components=2, standardize=True)
+            
+            # Get aligned subset for this benchmark
+            subset = align_subset(returns_df, tickers)
+            if subset.empty:
+                print(f"[historical] {benchmark_name}: No valid data after alignment")
+                continue
+                
+            pc1 = pca_res.pc_time_series["PC1"]
+            
+            # Collect historical signals and z-scores for each stock
+            signal_series = {}
+            z_series = {}
+            
+            for tkr in subset.index:
+                # Regress stock on PC1
+                reg = regress_stock_on_pc1(subset.loc[tkr], pc1)
+                
+                # Calculate rolling z-scores
+                z = rolling_zscore(reg.residuals, window=z_window, min_periods=z_min_periods)
+                
+                # Generate signals from z-scores
+                sig = stat_arb_signals(z, entry=entry, exit_=exit_)
+                
+                signal_series[tkr] = sig
+                z_series[tkr] = z
+            
+            # Convert to DataFrames with dates as index, stocks as columns
+            signals_df = pd.DataFrame(signal_series)
+            z_scores_df = pd.DataFrame(z_series)
+            
+            results[benchmark_name] = {
+                'signals': signals_df,
+                'z_scores': z_scores_df,
+                'pc1': pca_res.pc_time_series["PC1"],
+                'pc2': pca_res.pc_time_series["PC2"],
+                'loadings': pca_res.loadings,
+                'explained_variance': pca_res.explained_variance_ratio,
+            }
+            
+            print(f"[historical] {benchmark_name}: Generated signals for {len(signal_series)} stocks over {len(signals_df)} dates")
+            
+        except Exception as e:
+            print(f"[historical] Skipped {benchmark_name}: {e}")
+            continue
+    
+    return results
+
+
+def process_benchmark_with_history(
+    returns_df: pd.DataFrame,
+    benchmark_name: str,
+    tickers: List[str],
+    z_window: int = 60,
+    z_min_periods: int = 30,
+    entry: float = 2.0,
+    exit_: float = 0.5,
+    include_historical: bool = False,
+    ) -> BenchmarkResult:
+    """
+    Extended version of process_benchmark that optionally includes historical signals.
+    
+    Parameters
+    ----------
+    include_historical : bool, default=False
+        If True, includes full historical signals and z-scores in the result
+    
+    Returns
+    -------
+    BenchmarkResult with optional historical data
+    """
+    
+    normalized_present = [str(t).strip().upper() for t in tickers if str(t).strip().upper() in returns_df.index]
+    print(f"[process] {benchmark_name}: cfg={len(tickers)} present={len(normalized_present)}")
+
+    pca_res = run_benchmark_pca(returns_df, benchmark_name, tickers, n_components=2, standardize=True)
+
+    subset = align_subset(ensure_datetime_columns(returns_df), tickers)
+    pc1 = pca_res.pc_time_series["PC1"]
+
+    rows = []
+    signal_series = {}
+    z_series = {}
+    
+    for tkr in subset.index:
+        reg = regress_stock_on_pc1(subset.loc[tkr], pc1)
+        z = rolling_zscore(reg.residuals, window=z_window, min_periods=z_min_periods)
+        sig = stat_arb_signals(z, entry=entry, exit_=exit_)
+        
+        # Summary stats (existing functionality)
+        rows.append({
+            "stock": tkr,
+            "r2": reg.r2,
+            "alpha": reg.alpha,
+            "beta": reg.beta,
+            "z": z.iloc[-1] if len(z.dropna()) else np.nan,
+            "signal": int(sig.iloc[-1]) if len(sig.dropna()) else 0,
+        })
+        
+        # Store historical data if requested
+        if include_historical:
+            signal_series[tkr] = sig
+            z_series[tkr] = z
+
+    stock_df = pd.DataFrame(rows).set_index("stock").sort_index()
+
+    # Add correlations to PCs
+    corr_df = pc_correlation(subset, pca_res.pc_time_series)
+    per_stock = stock_df.join(corr_df, how="left")
+    per_stock.insert(0, "benchmark", benchmark_name)
+
+    # Prepare historical data if requested
+    historical_signals = None
+    historical_z_scores = None
+    if include_historical and signal_series:
+        historical_signals = pd.DataFrame(signal_series)
+        historical_z_scores = pd.DataFrame(z_series)
+
+    return BenchmarkResult(
+        pca=pca_res, 
+        per_stock=per_stock,
+        historical_signals=historical_signals,
+        historical_z_scores=historical_z_scores
+    )
 
