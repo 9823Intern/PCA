@@ -1,0 +1,63 @@
+{
+    "data_paths": {
+        "georges_db_path": "C:\\Users\\bearj\\Precept Dropbox\\Enn Turn\\Georges_DataBase",
+        "adj_close_csv": "Securities_Adj_Close_MASTER.csv",
+        "pct_change_csv": "Securities_Daily_Pct_Change_MASTER.csv",
+        "adj_close_xarray": "securities_adj_close_master.nc",
+        "pct_change_xarray": "securities_pct_change_master.nc",
+        "legacy_figionly_csv": "figionly.csv",
+        "benchmark_config": "benchmark_config.json",
+        "backtester_path": "../Backtester"
+    },
+    "csv_structure": {
+        "bloomberg_ticker_column": 0,
+        "figi_column": 1,
+        "first_date_column": 2,
+        "date_format": "mixed"
+    },
+    "xarray_settings": {
+        "primary_id_dim": "figi",
+        "date_dim": "date",
+        "compression": "gzip",
+        "compression_level": 6
+    },
+    "validation": {
+        "min_tickers": 10,
+        "min_dates": 100,
+        "max_daily_return_threshold": 0.5,
+        "min_price_threshold": 0.01,
+        "max_price_threshold": 10000.0
+    },
+    "factset_config": {
+        "enabled": true,
+        "update_frequency": "daily",
+        "max_days_behind": 5,
+        "batch_size": 100,
+        "retry_attempts": 3
+    },
+    "pca_parameters": {
+        "z_window": 60,
+        "z_min_periods": 30,
+        "entry_threshold": 2.0,
+        "exit_threshold": 0.5,
+        "min_r2": 0.1,
+        "dynamic_zscore": false,
+        "dynamic_lookback": 252,
+        "volatility_adjustment": true,
+        "momentum_filter": false,
+        "momentum_threshold": 0.1
+    },
+    "backtest_parameters": {
+        "start_date": "2020-01-01",
+        "end_date": "2023-12-31",
+        "initial_capital": 100000,
+        "transaction_cost": 0.001,
+        "max_position_size": 0.05,
+        "rebalance_frequency": "daily"
+    },
+    "logging": {
+        "level": "INFO",
+        "format": "%(asctime)s - %(levelname)s - %(message)s",
+        "file": "pca_migration.log"
+    }
+}

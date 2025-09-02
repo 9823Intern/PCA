@@ -1,47 +1,104 @@
 """
-Example: Using Historical Signals for Backtesting
-------------------------------------------------
+Example: Using Historical Signals for Backtesting (Config-Driven)
+----------------------------------------------------------------
 
-This script demonstrates how to retrieve full historical signals and z-scores
-from the PCA stat arb module for backtesting purposes.
+Enhanced script using config.json and xarray for faster backtesting.
+Demonstrates both legacy pandas and new xarray approaches.
 """
 
 import pandas as pd
 import numpy as np
 import json
+from pathlib import Path
+from data_migration import load_config, PCADataManager, XArrayBacktester
 from pca_stat_arb_module import get_historical_signals
 
-def example_backtest_usage():
+def example_xarray_backtest(config_path: str = "config.json"):
     """
-    Example showing how to use historical signals for backtesting.
+    Example using new xarray-based backtesting for optimal performance.
     """
+    print("=== XARRAY BACKTEST EXAMPLE ===")
     
-    # Load your returns data (replace with your actual data)
+    # Load configuration
+    config = load_config(config_path)
+    
+    # Initialize data manager
+    manager = PCADataManager(config)
+    
     try:
-        returns_df = pd.read_csv("C:/Users/EnnTurn/Precept Dropbox/Enn Turn/Georges_DataBase/figionly.csv", index_col=0, parse_dates=True)
-        returns_df.index.name = "FIGI"
+        # Try to load xarray data
+        returns_xr = manager.get_xarray_returns()
+        print(f"[xarray] Loaded returns data: {returns_xr.shape}")
         
-        # Clean and prepare data
-        col_labels = returns_df.columns.map(str).str.strip()
-        parsed_cols = pd.to_datetime(col_labels, errors="coerce", format="mixed")
-        returns_df = returns_df.loc[:, ~parsed_cols.isna()]
-        returns_df.columns = parsed_cols[~parsed_cols.isna()]
-        returns_df.index = returns_df.index.map(str).str.strip().str.upper()
+        # Load benchmarks
+        benchmarks = load_benchmarks_from_config(config)
+        print(f"[xarray] Loaded {len(benchmarks)} benchmarks")
+        
+        # Run fast xarray backtest
+        backtester = XArrayBacktester(manager)
+        results = backtester.run_backtest(benchmarks)
+        
+        # Display results
+        print(f"\n=== XARRAY BACKTEST RESULTS ===")
+        for benchmark_name, result in results.items():
+            if 'performance' in result:
+                perf = result['performance']
+                print(f"\n{benchmark_name}:")
+                print(f"  Annual Return: {perf.get('annual_return', 0):.2%}")
+                print(f"  Sharpe Ratio: {perf.get('sharpe', 0):.2f}")
+                print(f"  Max Drawdown: {perf.get('max_drawdown', 0):.2%}")
+                print(f"  Win Rate: {perf.get('win_rate', 0):.2%}")
+                print(f"  Active Days: {perf.get('active_days', 0)}")
+        
+        return results
         
     except FileNotFoundError:
-        print("Data file not found. Using mock data for demonstration...")
-        # Create mock data for demonstration
-        dates = pd.date_range('2020-01-01', '2023-12-31', freq='D')
-        tickers = ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'TSLA']
-        np.random.seed(42)
-        returns_data = np.random.normal(0.001, 0.02, (len(tickers), len(dates)))
-        returns_df = pd.DataFrame(returns_data, index=tickers, columns=dates)
+        print("[xarray] xarray data not found. Run migration first:")
+        print("  python data_migration.py --action migrate")
+        return None
+
+def example_legacy_backtest(config_path: str = "config.json"):
+    """
+    Legacy example using pandas approach (for comparison/fallback).
+    """
+    print("=== LEGACY PANDAS BACKTEST EXAMPLE ===")
     
-    # Load benchmarks
+    # Load configuration
+    config = load_config(config_path)
+    
+    # Load your returns data using config
     try:
-        with open("benchmark_config.json", "r") as f:
-            config = json.load(f)
-        benchmarks = {name: data["Tickers"] for name, data in config["benchmarks"].items() if data["Tickers"]}
+        manager = PCADataManager(config)
+        returns_df = manager.get_pandas_returns_for_pca()
+        print(f"[legacy] Using xarray->pandas conversion: {returns_df.shape}")
+        
+    except FileNotFoundError:
+        # Fallback to legacy CSV
+        legacy_path = Path(config.georges_db_path) / config.legacy_figionly_csv
+        try:
+            returns_df = pd.read_csv(legacy_path, index_col=0, parse_dates=True)
+            returns_df.index.name = "FIGI"
+            
+            # Clean and prepare data
+            col_labels = returns_df.columns.map(str).str.strip()
+            parsed_cols = pd.to_datetime(col_labels, errors="coerce", format="mixed")
+            returns_df = returns_df.loc[:, ~parsed_cols.isna()]
+            returns_df.columns = parsed_cols[~parsed_cols.isna()]
+            returns_df.index = returns_df.index.map(str).str.strip().str.upper()
+            print(f"[legacy] Using legacy CSV: {returns_df.shape}")
+            
+        except FileNotFoundError:
+            print("No data found. Using mock data for demonstration...")
+            # Create mock data for demonstration
+            dates = pd.date_range('2020-01-01', '2023-12-31', freq='D')
+            tickers = ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'TSLA']
+            np.random.seed(42)
+            returns_data = np.random.normal(0.001, 0.02, (len(tickers), len(dates)))
+            returns_df = pd.DataFrame(returns_data, index=tickers, columns=dates)
+    
+    # Load benchmarks using config
+    try:
+        benchmarks = load_benchmarks_from_config(config)
     except FileNotFoundError:
         print("Benchmark config not found. Using mock benchmarks...")
         benchmarks = {
@@ -59,15 +116,15 @@ def example_backtest_usage():
     
     print(f"Using {len(filtered_benchmarks)} benchmarks with available data")
     
-    # ===== GET HISTORICAL SIGNALS =====
-    print("\n=== Retrieving Historical Signals ===")
+    # ===== GET HISTORICAL SIGNALS (LEGACY PANDAS) =====
+    print("\n=== Retrieving Historical Signals (Legacy) ===")
     historical_data = get_historical_signals(
         returns_df=returns_df,
         benchmarks=filtered_benchmarks,
-        z_window=60,
-        z_min_periods=30,
-        entry=2.0,
-        exit_=0.5,
+        z_window=config.z_window,
+        z_min_periods=config.z_min_periods,
+        entry=config.entry_threshold,
+        exit_=config.exit_threshold,
     )
     
     # ===== ANALYZE RESULTS =====
@@ -135,5 +192,34 @@ def example_backtest_usage():
             active_days = (lagged_signals != 0).any(axis=1).sum()
             print(f"Active trading days: {active_days}/{len(common_dates)} ({active_days/len(common_dates):.1%})")
 
+def load_benchmarks_from_config(config):
+    """Load benchmarks from config-specified file."""
+    benchmark_path = Path(config.benchmark_config)
+    if not benchmark_path.is_absolute():
+        benchmark_path = Path.cwd() / benchmark_path
+    
+    with open(benchmark_path, "r") as f:
+        benchmark_config = json.load(f)
+    
+    return {name: data["Tickers"] for name, data in benchmark_config["benchmarks"].items() if data["Tickers"]}
+
 if __name__ == "__main__":
-    example_backtest_usage() 
+    import argparse
+    
+    parser = argparse.ArgumentParser(description='PCA Backtest Examples')
+    parser.add_argument('--config', default='config.json', help='Config file path')
+    parser.add_argument('--method', choices=['xarray', 'legacy', 'both'], default='both',
+                       help='Which backtesting method to demonstrate')
+    
+    args = parser.parse_args()
+    
+    if args.method in ['xarray', 'both']:
+        print("Running xarray backtest example...")
+        xarray_results = example_xarray_backtest(args.config)
+    
+    if args.method in ['legacy', 'both']:
+        print("\nRunning legacy pandas backtest example...")
+        legacy_results = example_legacy_backtest(args.config)
+    
+    print("\n=== COMPARISON COMPLETE ===")
+    print("The xarray method should be significantly faster for large datasets!") 
